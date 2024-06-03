@@ -14,13 +14,16 @@ Omost 提供了一系列大型语言模型（LLM），这些模型能够编写�
 
 1、官方演示demo：你可以直接使用 [官方的 HuggingFace 平台](https://huggingface.co/spaces/lllyasviel/Omost)。
 
-2、本地部署方法：前提条件(1) 对AI和图像生成概念有基本了解。(2) 本地电脑有至少 8GB 显存的 Nvidia 显卡。(3) 熟悉Python和命令行操作。
+2、本地部署方法：
+
+前提条件：(1) 对AI和图像生成概念有基本了解。(2) 本地电脑有至少 8GB 显存的 Nvidia 显卡。(3) 熟悉Python和命令行操作。
 
 安装步骤：
-    1、安装 Conda，克隆 Omost 仓库（或者下载压缩包）。
-    2、创建 Conda 环境。
-    3、激活 Conda 环境。
-    4、安装 Omost 依赖项。
+
+    1、安装 Conda，克隆 Omost 仓库（或者下载压缩包）。    
+    2、创建 Conda 环境。    
+    3、激活 Conda 环境。    
+    4、安装 Omost 依赖项。    
     5、运行 gradio_app.py
 
     git clone https://github.com/lllyasviel/Omost.git
