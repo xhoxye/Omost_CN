@@ -12,7 +12,7 @@ Omost 提供了一系列大型语言模型（LLM），这些模型能够编写�
 
 # 如何开始使用
 
-你可以直接使用[官方的 HuggingFace 平台](https://huggingface.co/spaces/lllyasviel/Omost)。
+你可以直接使用 [官方的 HuggingFace 平台](https://huggingface.co/spaces/lllyasviel/Omost)。
 
 或者，你可以使用以下部署方法（需要 8GB Nvidia VRAM）：（安装conda，创建虚拟环境，激活虚拟环境，安装程序相关依赖，运行 gradio_app.py 文件）
 
@@ -32,7 +32,11 @@ Omost 提供了一系列大型语言模型（LLM），这些模型能够编写�
 
 或者使用批处理文件启动 run_Omost.bat
 
-    （未完成）
+    @echo off
+    cd /d "你的程序路径，例如D:\Omost"
+    call conda activate omost
+    python gradio_app.py
+    pause
 
 注意：量化的 LLM 需要 bitsandbytes 库。一些 9XX 系列、10XX 系列或 20XX 系列的 Nvidia GPU 在运行时可能会遇到问题。如果发生这种情况，请直接使用我们的官方 HuggingFace 平台。（我的 2070s-8G，可以运行，但渲染图像时需要将分辨率降低到768左右。）
 
