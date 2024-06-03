@@ -297,13 +297,13 @@ with gr.Blocks(
     with gr.Row(elem_classes='outer_parent'):
         with gr.Column(scale=25):
             with gr.Row():
-                clear_btn = gr.Button("➕ New Chat", variant="secondary", size="sm", min_width=60)
-                retry_btn = gr.Button("Retry", variant="secondary", size="sm", min_width=60, visible=False)
-                undo_btn = gr.Button("✏️️ Edit Last Input", variant="secondary", size="sm", min_width=60, interactive=False)
+                clear_btn = gr.Button("➕ 新建对话", variant="secondary", size="sm", min_width=60)
+                retry_btn = gr.Button("重试", variant="secondary", size="sm", min_width=60, visible=False)
+                undo_btn = gr.Button("✏️️ 编辑最近一次输入", variant="secondary", size="sm", min_width=60, interactive=False)
 
-            seed = gr.Number(label="Random Seed", value=12345, precision=0)
+            seed = gr.Number(label="随机种子", value=12345, precision=0)
 
-            with gr.Accordion(open=True, label='Language Model'):
+            with gr.Accordion(open=True, label='语言模型'):
                 with gr.Group():
                     with gr.Row():
                         temperature = gr.Slider(
@@ -323,25 +323,25 @@ with gr.Blocks(
                         maximum=4096,
                         step=1,
                         value=4096,
-                        label="Max New Tokens")
-            with gr.Accordion(open=True, label='Image Diffusion Model'):
+                        label="新 Tokens 最大值")
+            with gr.Accordion(open=True, label='图像扩散模型'):
                 with gr.Group():
                     with gr.Row():
-                        image_width = gr.Slider(label="Image Width", minimum=256, maximum=2048, value=896, step=64)
-                        image_height = gr.Slider(label="Image Height", minimum=256, maximum=2048, value=1152, step=64)
+                        image_width = gr.Slider(label="图像宽度", minimum=256, maximum=2048, value=896, step=64)
+                        image_height = gr.Slider(label="图像高度", minimum=256, maximum=2048, value=1152, step=64)
 
                     with gr.Row():
-                        num_samples = gr.Slider(label="Image Number", minimum=1, maximum=12, value=1, step=1)
-                        steps = gr.Slider(label="Sampling Steps", minimum=1, maximum=100, value=25, step=1)
+                        num_samples = gr.Slider(label="出图数量", minimum=1, maximum=12, value=1, step=1)
+                        steps = gr.Slider(label="采样步数", minimum=1, maximum=100, value=25, step=1)
 
-            with gr.Accordion(open=False, label='Advanced'):
-                cfg = gr.Slider(label="CFG Scale", minimum=1.0, maximum=32.0, value=5.0, step=0.01)
+            with gr.Accordion(open=False, label='高级设置'):
+                cfg = gr.Slider(label="提示词相关性 CFG", minimum=1.0, maximum=32.0, value=5.0, step=0.01)
                 highres_scale = gr.Slider(label="HR-fix Scale (\"1\" is disabled)", minimum=1.0, maximum=2.0, value=1.0, step=0.01)
-                highres_steps = gr.Slider(label="Highres Fix Steps", minimum=1, maximum=100, value=20, step=1)
-                highres_denoise = gr.Slider(label="Highres Fix Denoise", minimum=0.1, maximum=1.0, value=0.4, step=0.01)
-                n_prompt = gr.Textbox(label="Negative Prompt", value='lowres, bad anatomy, bad hands, cropped, worst quality')
+                highres_steps = gr.Slider(label="高清修复步数", minimum=1, maximum=100, value=20, step=1)
+                highres_denoise = gr.Slider(label="高清修复降噪强度", minimum=0.1, maximum=1.0, value=0.4, step=0.01)
+                n_prompt = gr.Textbox(label="反向提示词", value='lowres, bad anatomy, bad hands, cropped, worst quality')
 
-            render_button = gr.Button("Render the Image!", size='lg', variant="primary", visible=False)
+            render_button = gr.Button("渲染图像！", size='lg', variant="primary", visible=False)
 
             examples = gr.Dataset(
                 samples=[
@@ -349,7 +349,7 @@ with gr.Blocks(
                     ['change the dragon to a dinosaur']
                 ],
                 components=[gr.Textbox(visible=False)],
-                label='Quick Prompts'
+                label='提示词快捷列表'
             )
         with gr.Column(scale=75, elem_classes='inner_parent'):
             canvas_state = gr.State(None)
