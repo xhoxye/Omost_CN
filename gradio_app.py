@@ -1,5 +1,7 @@
 import os
 
+os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com' #使用镜像站下载模型
+
 os.environ['HF_HOME'] = os.path.join(os.path.dirname(__file__), 'hf_download')
 HF_TOKEN = None
 
@@ -34,6 +36,7 @@ import lib_omost.canvas as omost_canvas
 
 
 # SDXL
+# sdxl_name = 'RunDiffusion/Juggernaut-X-v10' #这个模型没有fp16
 
 sdxl_name = 'SG161222/RealVisXL_V4.0'
 # sdxl_name = 'stabilityai/stable-diffusion-xl-base-1.0'
@@ -87,6 +90,23 @@ llm_tokenizer = AutoTokenizer.from_pretrained(
 memory_management.unload_all_models(llm_model)
 
 
+def process_seed(seed_string):
+    # 尝试将字符串转换为整数
+    try:
+        seed = int(seed_string)
+    except ValueError:
+        raise ValueError(f"The seed string '{seed_string}' is not a valid integer.")
+    # 处理转换后的整数
+    if seed == -1:
+        # 如果是 -1，重新生成一个随机整数
+        seed = np.random.randint(0, 2**31 - 1)
+        #打印生成的随机种子
+        print(f"Random seed: {seed}")
+    elif not (0 <= seed <= 2**31 - 1):
+        # 如果整数不在 0 到 2**31 - 1 范围内，抛出异常
+        raise ValueError(f"The seed value '{seed}' is out of the valid range for int32 [0, {2**31 - 1}].")    
+    return seed
+
 @torch.inference_mode()
 def pytorch2numpy(imgs):
     results = []
@@ -113,6 +133,7 @@ def resize_without_crop(image, target_width, target_height):
 
 @torch.inference_mode()
 def chat_fn(message: str, history: list, seed:int, temperature: float, top_p: float, max_new_tokens: int) -> str:
+    seed = process_seed(seed)
     np.random.seed(int(seed))
     torch.manual_seed(int(seed))
 
@@ -193,6 +214,8 @@ def diffusion_fn(chatbot, canvas_outputs, num_samples, seed, image_width, image_
     eps = 0.05
 
     image_width, image_height = int(image_width // 64) * 64, int(image_height // 64) * 64
+
+    seed = process_seed(seed)
 
     rng = torch.Generator(device=memory_management.gpu).manual_seed(seed)
 
@@ -301,7 +324,7 @@ with gr.Blocks(
                 retry_btn = gr.Button("重试", variant="secondary", size="sm", min_width=60, visible=False)
                 undo_btn = gr.Button("✏️️ 编辑最近一次输入", variant="secondary", size="sm", min_width=60, interactive=False)
 
-            seed = gr.Number(label="随机种子", value=12345, precision=0)
+            seed = gr.Number(label="随机种子", value=-1, precision=0)
 
             with gr.Accordion(open=True, label='语言模型'):
                 with gr.Group():
@@ -311,20 +334,20 @@ with gr.Blocks(
                             maximum=2.0,
                             step=0.01,
                             value=0.6,
-                            label="Temperature")
+                            label="随机性调节")
                         top_p = gr.Slider(
                             minimum=0.0,
                             maximum=1.0,
                             step=0.01,
                             value=0.9,
-                            label="Top P")
+                            label="核心词采样")
                     max_new_tokens = gr.Slider(
                         minimum=128,
                         maximum=4096,
                         step=1,
                         value=4096,
-                        label="新 Tokens 最大值")
-            with gr.Accordion(open=True, label='图像扩散模型'):
+                        label="最大新词元（Tokens）数")
+            with gr.Accordion(open=True, label='图像扩散模型（8G显存建议宽高不高于768）'):
                 with gr.Group():
                     with gr.Row():
                         image_width = gr.Slider(label="图像宽度", minimum=256, maximum=2048, value=896, step=64)
@@ -335,7 +358,7 @@ with gr.Blocks(
                         steps = gr.Slider(label="采样步数", minimum=1, maximum=100, value=25, step=1)
 
             with gr.Accordion(open=False, label='高级设置'):
-                cfg = gr.Slider(label="提示词相关性 CFG", minimum=1.0, maximum=32.0, value=5.0, step=0.01)
+                cfg = gr.Slider(label="提示引导系数 CFG", minimum=1.0, maximum=32.0, value=5.0, step=0.01)
                 highres_scale = gr.Slider(label="高清修复放大倍数（1为禁用）", minimum=1.0, maximum=2.0, value=1.0, step=0.01)
                 highres_steps = gr.Slider(label="高清修复步数", minimum=1, maximum=100, value=20, step=1)
                 highres_denoise = gr.Slider(label="高清修复降噪强度", minimum=0.1, maximum=1.0, value=0.4, step=0.01)

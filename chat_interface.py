@@ -182,7 +182,7 @@ class ChatInterface(Blocks):
                         self.textbox = MultimodalTextbox(
                             show_label=False,
                             label="Message",
-                            placeholder="Type a message...",
+                            placeholder="请输入消息...",
                             scale=7,
                             autofocus=autofocus,
                         )
@@ -191,7 +191,7 @@ class ChatInterface(Blocks):
                             container=False,
                             show_label=False,
                             label="Message",
-                            placeholder="Type a message...",
+                            placeholder="请输入消息...",
                             scale=7,
                             autofocus=autofocus,
                         )
