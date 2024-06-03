@@ -40,6 +40,10 @@ Omost 提供了一系列大型语言模型（LLM），这些模型能够编写�
 
 注意：量化的 LLM 需要 bitsandbytes 库。一些 9XX 系列、10XX 系列或 20XX 系列的 Nvidia GPU 在运行时可能会遇到问题。如果发生这种情况，请直接使用我们的官方 HuggingFace 平台。（我的 2070s-8G，可以运行，但渲染图像时需要将分辨率降低到768左右。）
 
+# 界面翻译截图
+
+![](https://raw.githubusercontent.com/xhoxye/Omost_CN/main/Screenshots.png)
+
 # Omost
 
 Omost is a project to convert LLM's coding capability to image generation (or more accurately, image composing) capability. 
