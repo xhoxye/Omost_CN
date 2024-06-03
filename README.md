@@ -14,7 +14,7 @@ Omost 提供了一系列大型语言模型（LLM），这些模型能够编写�
 
 你可以直接使用[官方的 HuggingFace 平台](https://huggingface.co/spaces/lllyasviel/Omost)。
 
-或者，你可以使用以下部署方法（需要 8GB Nvidia VRAM）：
+或者，你可以使用以下部署方法（需要 8GB Nvidia VRAM）：（安装conda，创建虚拟环境，激活虚拟环境，安装程序相关依赖，运行 gradio_app.py 文件）
 
     git clone https://github.com/lllyasviel/Omost.git
     cd Omost
