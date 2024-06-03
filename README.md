@@ -24,6 +24,16 @@ Omost 提供了一系列大型语言模型（LLM），这些模型能够编写�
     pip install -r requirements.txt
     python gradio_app.py
 
+第一次安装成功启动后，下一次使用以下方法启动：
+
+    cd Omost
+    conda activate omost
+    python gradio_app.py
+
+或者使用批处理文件启动 run_Omost.bat
+
+    （未完成）
+
 注意：量化的 LLM 需要 bitsandbytes 库。一些 900 系列、1000 系列或 2000 系列的 Nvidia GPU 在运行时可能会遇到问题。如果发生这种情况，请直接使用我们的官方 HuggingFace 平台。
 
 # Omost
