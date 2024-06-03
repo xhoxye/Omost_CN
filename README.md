@@ -1,3 +1,31 @@
+# Omost 简介
+
+Omost 项目致力于将大型语言模型（LLM）的编码能力转化为图像生成（更准确地说，是图像合成）的能力。
+
+Omost 这个名字（发音：almost 几乎）蕴含双重含义：1）每次使用 Omost 后，您的图像几乎已经成型；2）"O" 代表 "omni"（全模态），而 "most" 则意味着我们致力于挖掘其最大潜力。
+
+Omost 提供了一系列大型语言模型（LLM），这些模型能够编写代码，通过 Omost 的虚拟画布代理来合成图像视觉内容。该画布可以通过特定的图像生成器实现来渲染，进而生成实际的图像。
+
+目前，我们提供了基于 Llama3 和 Phi3 变体的 3 个预训练的大型语言模型（详见页面底部的模型注释）。
+
+所有模型均经过了以下混合数据的训练：(1) 包括 Open-Images 在内多个数据集的地面真实注释；(2) 通过自动图像注释提取的数据；(3) 来自 DPO（直接偏好优化，以 "代码是否能够被 Python 3.10 编译" 作为直接偏好）的强化；以及 (4) 来自 OpenAI GPT4o 的少量多模态能力调整数据。
+
+# 如何开始使用
+
+你可以直接使用[官方的 HuggingFace 平台](https://huggingface.co/spaces/lllyasviel/Omost)。
+
+或者，你可以使用以下部署方法（需要 8GB Nvidia VRAM）：
+
+    git clone https://github.com/lllyasviel/Omost.git
+    cd Omost
+    conda create -n omost python=3.10
+    conda activate omost
+    pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+    pip install -r requirements.txt
+    python gradio_app.py
+
+注意：量化的 LLM 需要 bitsandbytes 库。一些 900 系列、1000 系列或 2000 系列的 Nvidia GPU 在运行时可能会遇到问题。如果发生这种情况，请直接使用我们的官方 HuggingFace 平台。
+
 # Omost
 
 Omost is a project to convert LLM's coding capability to image generation (or more accurately, image composing) capability. 
