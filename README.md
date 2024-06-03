@@ -30,10 +30,10 @@ Omost 提供了一系列大型语言模型（LLM），这些模型能够编写�
     conda activate omost
     python gradio_app.py
 
-或者使用批处理文件启动 run_Omost.bat
+或者使用批处理文件启动 run_Omost.bat，会自动读取批处理文件当前目录下的Omost文件夹：
 
     @echo off
-    cd /d "你的程序路径，例如D:\Omost"
+    cd /d "%~dp0Omost"
     call conda activate omost
     python gradio_app.py
     pause
