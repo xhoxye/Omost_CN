@@ -336,7 +336,7 @@ with gr.Blocks(
 
             with gr.Accordion(open=False, label='高级设置'):
                 cfg = gr.Slider(label="提示词相关性 CFG", minimum=1.0, maximum=32.0, value=5.0, step=0.01)
-                highres_scale = gr.Slider(label="HR-fix Scale (\"1\" is disabled)", minimum=1.0, maximum=2.0, value=1.0, step=0.01)
+                highres_scale = gr.Slider(label="高清修复放大倍数（1为禁用）", minimum=1.0, maximum=2.0, value=1.0, step=0.01)
                 highres_steps = gr.Slider(label="高清修复步数", minimum=1, maximum=100, value=20, step=1)
                 highres_denoise = gr.Slider(label="高清修复降噪强度", minimum=0.1, maximum=1.0, value=0.4, step=0.01)
                 n_prompt = gr.Textbox(label="反向提示词", value='lowres, bad anatomy, bad hands, cropped, worst quality')
