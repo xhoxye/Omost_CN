@@ -25,7 +25,7 @@ Phi3PreTrainedModel._supports_sdpa = True
 
 from PIL import Image
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
-from diffusers import AutoencoderKL, UNet2DConditionModel
+from diffusers import AutoencoderKL, UNet2DConditionModel, StableDiffusionXLImg2ImgPipeline
 from diffusers.models.attention_processor import AttnProcessor2_0
 from transformers import CLIPTextModel, CLIPTokenizer
 from lib_omost.pipeline import StableDiffusionXLOmostPipeline
@@ -34,25 +34,36 @@ from transformers.generation.stopping_criteria import StoppingCriteriaList
 
 import lib_omost.canvas as omost_canvas
 
+# 定义当前目录下 models/checkpoints 文件夹的路径
+models_dir = os.path.join(os.getcwd(), 'models/checkpoints')
+#如果没有发现这个文件夹，则创建一个 models/checkpoints文件夹    
+if not os.path.exists(models_dir):
+    os.makedirs(models_dir)
 
-# SDXL
-# sdxl_name = 'RunDiffusion/Juggernaut-X-v10' #这个模型没有fp16
+# sdxl_name是本地模型名称
+sdxl_name = 'RealVisXL_V4.0'
 
-sdxl_name = 'SG161222/RealVisXL_V4.0'
-# sdxl_name = 'stabilityai/stable-diffusion-xl-base-1.0'
+# 检查model_path是否为当前目录下models文件夹中的一个.safetensors文件
+model_path = os.path.join(models_dir, sdxl_name + '.safetensors')
 
-tokenizer = CLIPTokenizer.from_pretrained(
-    sdxl_name, subfolder="tokenizer")
-tokenizer_2 = CLIPTokenizer.from_pretrained(
-    sdxl_name, subfolder="tokenizer_2")
-text_encoder = CLIPTextModel.from_pretrained(
-    sdxl_name, subfolder="text_encoder", torch_dtype=torch.float16, variant="fp16")
-text_encoder_2 = CLIPTextModel.from_pretrained(
-    sdxl_name, subfolder="text_encoder_2", torch_dtype=torch.float16, variant="fp16")
-vae = AutoencoderKL.from_pretrained(
-    sdxl_name, subfolder="vae", torch_dtype=torch.bfloat16, variant="fp16")  # bfloat16 vae
-unet = UNet2DConditionModel.from_pretrained(
-    sdxl_name, subfolder="unet", torch_dtype=torch.float16, variant="fp16")
+if not os.path.isfile(model_path):
+    print(f"Downloading {sdxl_name} from https://huggingface.co/SG161222/RealVisXL_V4.0/resolve/main/RealVisXL_V4.0.safetensors")  
+    print(f"Downloading {sdxl_name} from https://hf-mirror.com/SG161222/RealVisXL_V4.0/resolve/main/RealVisXL_V4.0.safetensors")  
+    #抛出异常
+    raise FileNotFoundError(f"{sdxl_name}.safetensors not found in {models_dir}")
+
+# 文件存在，加载模型并创建pipeline
+temp_pipeline = StableDiffusionXLImg2ImgPipeline.from_single_file(model_path, torch_dtype=torch.float16)
+
+# 从pipeline中获取组件
+tokenizer = temp_pipeline.tokenizer
+tokenizer_2 = temp_pipeline.tokenizer_2
+text_encoder = temp_pipeline.text_encoder
+text_encoder_2 = temp_pipeline.text_encoder_2
+# 转换text_encoder_2为ClipTextModel
+text_encoder_2 = CLIPTextModel(config=text_encoder_2.config)
+vae = temp_pipeline.vae
+unet = temp_pipeline.unet
 
 unet.set_attn_processor(AttnProcessor2_0())
 vae.set_attn_processor(AttnProcessor2_0())
@@ -66,7 +77,6 @@ pipeline = StableDiffusionXLOmostPipeline(
     unet=unet,
     scheduler=None,  # We completely give up diffusers sampling system and use A1111's method
 )
-
 memory_management.unload_all_models([text_encoder, text_encoder_2, vae, unet])
 
 # LLM
@@ -187,6 +197,9 @@ def chat_fn(message: str, history: list, seed:int, temperature: float, top_p: fl
         # print(outputs)
         yield "".join(outputs), interrupter
 
+    #打印完成信息
+    print('Chat finished')
+
     return
 
 
@@ -211,7 +224,7 @@ def diffusion_fn(chatbot, canvas_outputs, num_samples, seed, image_width, image_
                  highres_scale, steps, cfg, highres_steps, highres_denoise, negative_prompt):
 
     use_initial_latent = False
-    eps = 0.05
+    eps = 0.05 
 
     image_width, image_height = int(image_width // 64) * 64, int(image_height // 64) * 64
 
@@ -347,7 +360,7 @@ with gr.Blocks(
                         step=1,
                         value=4096,
                         label="最大新词元（Tokens）数")
-            with gr.Accordion(open=True, label='图像扩散模型（8G显存建议宽高不高于768）'):
+            with gr.Accordion(open=True, label='图像扩散模型'):
                 with gr.Group():
                     with gr.Row():
                         image_width = gr.Slider(label="图像宽度", minimum=256, maximum=2048, value=896, step=64)
