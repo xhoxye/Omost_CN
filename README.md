@@ -50,6 +50,10 @@ Omost 提供了一系列大型语言模型（LLM），这些模型能够编写�
 
 注意：量化的 LLM 需要 bitsandbytes 库。一些 9XX 系列、10XX 系列或 20XX 系列的 Nvidia GPU 在运行时可能会遇到问题。如果发生这种情况，请直接使用我们的官方 HuggingFace 平台。（我的 2070s-8G 可以运行。）
 
+# Omost_CN 修改版本特点
+
+支持 huggingface 国内镜像站下载模型，支持读取本地 .safetensors 模型文件、列表选取、刷新列表，支持 LLM 模型列表选取（这个是huggingface缓存下载），支持图片保存按日期时间命名并保存到指定目录 outputs，-1 生成随机种子，在控制台打印各种信息包括加载的模型名称、使用的种子、对话和图像渲染的耗时等等。
+
 # 界面翻译截图
 
 ![](https://raw.githubusercontent.com/xhoxye/Omost_CN/main/Screenshots.png)
