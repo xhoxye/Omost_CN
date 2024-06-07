@@ -403,7 +403,7 @@ with gr.Blocks(
                 clear_btn = gr.Button("➕ 新建对话", variant="secondary", size="sm", min_width=60)
                 retry_btn = gr.Button("重试", variant="secondary", size="sm", min_width=60, visible=False)
                 undo_btn = gr.Button("✏️️ 编辑最近一次输入", variant="secondary", size="sm", min_width=60, interactive=False)
-            with gr.Tab(label='Setting'):
+            with gr.Tab(label='设置'):
 
                 seed = gr.Number(label="随机种子", value=-1, precision=0)
 
@@ -445,7 +445,7 @@ with gr.Blocks(
                     highres_denoise = gr.Slider(label="高清修复降噪强度", minimum=0.1, maximum=1.0, value=0.4, step=0.01)
                     n_prompt = gr.Textbox(label="反向提示词", value='lowres, bad anatomy, bad hands, cropped, worst quality')
 
-            with gr.Tab(label='Models'):
+            with gr.Tab(label='模型'):
                 llm_model_select = gr.Dropdown(label="大语言模型", choices=llm_models_list, value=llm_name, interactive=True)
                 llm_model_select.change(inputs=[llm_model_select], outputs=[])
                 image_diffusion_model_select = gr.Dropdown(label="图像渲染模型", choices=image_diffusion_models_list, value=sdxl_name, interactive=True)
