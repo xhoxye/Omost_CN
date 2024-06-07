@@ -1,6 +1,6 @@
 import os
 
-os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com' #使用镜像站下载模型，不想用就注释掉
+os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com' #国内IP使用镜像站下载模型，不想用就注释掉
 
 os.environ['HF_HOME'] = os.path.join(os.path.dirname(__file__), 'models/hf_download')
 HF_TOKEN = None
@@ -39,28 +39,16 @@ from transformers.generation.stopping_criteria import StoppingCriteriaList
 
 import lib_omost.canvas as omost_canvas
 
-# LLM
-
-# llm_name = 'lllyasviel/omost-phi-3-mini-128k-8bits'
+llm_models_list=[
+    'lllyasviel/omost-llama-3-8b-4bits',
+    'lllyasviel/omost-dolphin-2.9-llama3-8b-4bits',
+    'lllyasviel/omost-phi-3-mini-128k-8bits',
+    'lllyasviel/omost-llama-3-8b',
+    'lllyasviel/omost-dolphin-2.9-llama3-8b',
+    'lllyasviel/omost-phi-3-mini-128k'
+]
+# LLM 默认值
 llm_name = 'lllyasviel/omost-llama-3-8b-4bits'
-# llm_name = 'lllyasviel/omost-dolphin-2.9-llama3-8b-4bits'
-
-#打印 llm_name 加载信息    
-print(f'Loading LLM model: {llm_name}')
-
-llm_model = AutoModelForCausalLM.from_pretrained(
-    llm_name,
-    torch_dtype=torch.bfloat16,  # This is computation type, not load/memory type. The loading quant type is baked in config.
-    token=HF_TOKEN,
-    device_map="auto"  # This will load model to gpu with an offload system
-)
-
-llm_tokenizer = AutoTokenizer.from_pretrained(
-    llm_name,
-    token=HF_TOKEN
-)
-
-memory_management.unload_all_models(llm_model)
 
 # 定义当前目录下 models/checkpoints 文件夹的路径
 models_dir = os.path.join(os.getcwd(), 'models/checkpoints')
@@ -90,33 +78,42 @@ pipeline = None
 def load_model(models_dir, image_diffusion_model_select):
     global tokenizer, tokenizer_2, text_encoder, text_encoder_2, vae, unet, pipeline
 
-    # 构建模型完整路径
     model_path = os.path.join(models_dir, image_diffusion_model_select + '.safetensors')
     
-    # 检查模型文件是否存在
     if not os.path.isfile(model_path):
-        print(f"Download from https://huggingface.co/SG161222/RealVisXL_V4.0/resolve/main/RealVisXL_V4.0.safetensors")
-        print(f"国内IP请从 https://hf-mirror.com/SG161222/RealVisXL_V4.0/resolve/main/RealVisXL_V4.0.safetensors 下载默认模型文件")
-        # 抛出异常信息
-        raise FileNotFoundError(f"{image_diffusion_model_select}.safetensors not found in {models_dir} .")
+        print(f"{image_diffusion_model_select}.safetensors not found in {models_dir} .")
+        print(f"Please download the model file from https://huggingface.co/SG161222/RealVisXL_V4.0/resolve/main/RealVisXL_V4.0.safetensors to {models_dir}")
+        print(f"国内IP请下载 https://hf-mirror.com/SG161222/RealVisXL_V4.0/resolve/main/RealVisXL_V4.0.safetensors 默认模型并存放到 {models_dir} 路径下。")
+        print(f"Next, it will switch to the Hugging Face directory 'SG161222/RealVisXL_V4.0' to download and run.")
+        hf_repo_id = 'SG161222/RealVisXL_V4.0'
+
+        tokenizer = CLIPTokenizer.from_pretrained(
+            hf_repo_id, subfolder="tokenizer")
+        tokenizer_2 = CLIPTokenizer.from_pretrained(
+            hf_repo_id, subfolder="tokenizer_2")
+        text_encoder = CLIPTextModel.from_pretrained(
+            hf_repo_id, subfolder="text_encoder", torch_dtype=torch.float16, variant="fp16")
+        text_encoder_2 = CLIPTextModel.from_pretrained(
+            hf_repo_id, subfolder="text_encoder_2", torch_dtype=torch.float16, variant="fp16")
+        vae = AutoencoderKL.from_pretrained(
+            hf_repo_id, subfolder="vae", torch_dtype=torch.bfloat16, variant="fp16")  # bfloat16 vae
+        unet = UNet2DConditionModel.from_pretrained(
+            hf_repo_id, subfolder="unet", torch_dtype=torch.float16, variant="fp16")
+    else:
+        # 使用本地模型文件创建pipeline，如果显存在12G及以上可以使用 float32
+        model_pipeline = StableDiffusionXLImg2ImgPipeline.from_single_file(model_path, torch_dtype=torch.float16, variant="fp16")
+
+        tokenizer = model_pipeline.tokenizer
+        tokenizer_2 = model_pipeline.tokenizer_2
+        text_encoder = model_pipeline.text_encoder
+        text_encoder_2 = model_pipeline.text_encoder_2
+        text_encoder_2 = CLIPTextModel(config=text_encoder_2.config)  # 转换text_encoder_2
+        vae = model_pipeline.vae
+        unet = model_pipeline.unet
     
-    # 使用模型文件创建pipeline
-    temp_pipeline = StableDiffusionXLImg2ImgPipeline.from_single_file(model_path, torch_dtype=torch.float16)
-    
-    # 从pipeline中提取组件并进行必要的转换
-    tokenizer = temp_pipeline.tokenizer
-    tokenizer_2 = temp_pipeline.tokenizer_2
-    text_encoder = temp_pipeline.text_encoder
-    text_encoder_2 = temp_pipeline.text_encoder_2
-    text_encoder_2 = CLIPTextModel(config=text_encoder_2.config)  # 转换text_encoder_2
-    vae = temp_pipeline.vae
-    unet = temp_pipeline.unet
-    
-    # 更新attention processor
     unet.set_attn_processor(AttnProcessor2_0())
     vae.set_attn_processor(AttnProcessor2_0())
     
-    # 创建并返回新的pipeline实例
     pipeline = StableDiffusionXLOmostPipeline(
         vae=vae,
         text_encoder=text_encoder,
@@ -124,7 +121,7 @@ def load_model(models_dir, image_diffusion_model_select):
         text_encoder_2=text_encoder_2,
         tokenizer_2=tokenizer_2,
         unet=unet,
-        scheduler=None,  # 给定A1111的采样方法假设
+        scheduler=None,  # We completely give up diffusers sampling system and use A1111's method
     )
     return pipeline
 
@@ -138,8 +135,6 @@ def process_seed(seed_string):
     if seed == -1:
         # 如果是 -1，重新生成一个随机整数
         seed = np.random.randint(0, 2**31 - 1)
-        #打印生成的随机种子
-        print(f"Random seed: {seed}")
     elif not (0 <= seed <= 2**31 - 1):
         # 如果整数不在 0 到 2**31 - 1 范围内，抛出异常
         raise ValueError(f"The seed value '{seed}' is out of the valid range for int32 [0, {2**31 - 1}].")    
@@ -169,11 +164,31 @@ def resize_without_crop(image, target_width, target_height):
     return np.array(resized_image)
 
 @torch.inference_mode()
-def chat_fn(message: str, history: list, seed:int, temperature: float, top_p: float, max_new_tokens: int) -> str:
-        
+def chat_fn(message: str, history: list, seed:int, temperature: float, top_p: float, max_new_tokens: int, llm_model_select: int) -> str:          
+
+    memory_management.unload_all_models()
+
+    print(f'Loading LLM model: {llm_model_select}')
+
+    llm_model = AutoModelForCausalLM.from_pretrained(
+        llm_model_select,
+        torch_dtype=torch.bfloat16,  # This is computation type, not load/memory type. The loading quant type is baked in config.
+        token=HF_TOKEN,
+        device_map="auto"  # This will load model to gpu with an offload system
+    )
+
+    llm_tokenizer = AutoTokenizer.from_pretrained(
+        llm_model_select,
+        token=HF_TOKEN
+    )
+
+    memory_management.unload_all_models(llm_model)
+
     chat_start_time = time.perf_counter()
 
     seed = process_seed(seed)
+    #打印对话种子值
+    print(f"Chat seed: {seed}")
     np.random.seed(int(seed))
     torch.manual_seed(int(seed))
 
@@ -229,7 +244,7 @@ def chat_fn(message: str, history: list, seed:int, temperature: float, top_p: fl
 
     #打印完成信息
     chat_time = time.perf_counter() - chat_start_time
-    print(f'Total time: {chat_time:.2f} seconds')
+    print(f'Chat total time: {chat_time:.2f} seconds')
     print('Chat finished')
 
     return
@@ -270,6 +285,8 @@ def diffusion_fn(chatbot, canvas_outputs, num_samples, seed, image_width, image_
     image_width, image_height = int(image_width // 64) * 64, int(image_height // 64) * 64
 
     seed = process_seed(seed)
+    #打印图像种子值
+    print(f"Image seed: {seed}")
 
     rng = torch.Generator(device=memory_management.gpu).manual_seed(seed)
 
@@ -352,13 +369,13 @@ def diffusion_fn(chatbot, canvas_outputs, num_samples, seed, image_width, image_
         current_time = datetime.datetime.now()
         time_string = current_time.strftime("%Y-%m-%d_%H-%M-%S")
         image_path = os.path.join(outputs_dir, f"{time_string}_{i}_{unique_hex}.png")           
-        print(f'Saving image: {image_path}')#打印保存图片信息
+        print(f'Image saved at: {image_path}')#打印保存图片信息
         image = Image.fromarray(pixels[i])
         image.save(image_path)
         chatbot = chatbot + [(None, (image_path, 'image'))]
 
     diffusion_time = time.perf_counter() - diffusion_start_time
-    print(f'Total time: {diffusion_time:.2f} seconds')
+    print(f'Image render total time: {diffusion_time:.2f} seconds')
 
     return chatbot
 
@@ -427,9 +444,9 @@ with gr.Blocks(
                     n_prompt = gr.Textbox(label="反向提示词", value='lowres, bad anatomy, bad hands, cropped, worst quality')
 
             with gr.Tab(label='Models'):
-                #llm_model_select = gr.Dropdown(label="llm_models", value=llm_name)
-                image_diffusion_model_select = gr.Dropdown(label="image_diffusion_models", choices=image_diffusion_models_list, value=sdxl_name, interactive=True)
-                # image_diffusion_model 因为选择而改变时
+                llm_model_select = gr.Dropdown(label="LLM model", choices=llm_models_list, value=llm_name, interactive=True)
+                llm_model_select.change(inputs=[llm_model_select], outputs=[])
+                image_diffusion_model_select = gr.Dropdown(label="Image diffusion model", choices=image_diffusion_models_list, value=sdxl_name, interactive=True)
                 image_diffusion_model_select.change(inputs=[image_diffusion_model_select], outputs=[])
 
             render_button = gr.Button("渲染图像！", size='lg', variant="primary", visible=False)
@@ -437,7 +454,8 @@ with gr.Blocks(
             examples = gr.Dataset(
                 samples=[
                     ['generate an image of the fierce battle of warriors and a dragon'],
-                    ['change the dragon to a dinosaur']
+                    ['change the dragon to a dinosaur'],
+                    ['generate a half length portrait photoshooot of a man and a woman on the city street']
                 ],
                 components=[gr.Textbox(visible=False)],
                 label='提示词快捷列表'
@@ -455,7 +473,7 @@ with gr.Blocks(
                 retry_btn=retry_btn,
                 undo_btn=undo_btn,
                 clear_btn=clear_btn,
-                additional_inputs=[seed, temperature, top_p, max_new_tokens],
+                additional_inputs=[seed, temperature, top_p, max_new_tokens,llm_model_select],
                 examples=examples
             )
 
