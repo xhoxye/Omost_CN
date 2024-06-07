@@ -66,6 +66,10 @@ def get_image_diffusion_models_list(models_dir):
 
 # 使用函数获取模型列表
 image_diffusion_models_list = get_image_diffusion_models_list(models_dir)
+#定义一个刷新模型列表的函数，执行get_image_diffusion_models_list函数来更新image_diffusion_model_select的choices 
+def refresh_models_list():
+    image_diffusion_models_list = get_image_diffusion_models_list(models_dir)
+    return gr.update(choices=image_diffusion_models_list)
 
 tokenizer = None
 tokenizer_2 = None
@@ -165,8 +169,6 @@ def resize_without_crop(image, target_width, target_height):
 
 @torch.inference_mode()
 def chat_fn(message: str, history: list, seed:int, temperature: float, top_p: float, max_new_tokens: int, llm_model_select: int) -> str:          
-
-    memory_management.unload_all_models()
 
     print(f'Loading LLM model: {llm_model_select}')
 
@@ -448,6 +450,8 @@ with gr.Blocks(
                 llm_model_select.change(inputs=[llm_model_select], outputs=[])
                 image_diffusion_model_select = gr.Dropdown(label="Image diffusion model", choices=image_diffusion_models_list, value=sdxl_name, interactive=True)
                 image_diffusion_model_select.change(inputs=[image_diffusion_model_select], outputs=[])
+                refresh_models_list_btn = gr.Button("🔄️ Refresh Image diffusion model list", variant="secondary", min_width=60)
+                refresh_models_list_btn.click(refresh_models_list, inputs=[], outputs=[image_diffusion_model_select])
 
             render_button = gr.Button("渲染图像！", size='lg', variant="primary", visible=False)
 
