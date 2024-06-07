@@ -446,11 +446,11 @@ with gr.Blocks(
                     n_prompt = gr.Textbox(label="反向提示词", value='lowres, bad anatomy, bad hands, cropped, worst quality')
 
             with gr.Tab(label='Models'):
-                llm_model_select = gr.Dropdown(label="LLM model", choices=llm_models_list, value=llm_name, interactive=True)
+                llm_model_select = gr.Dropdown(label="大语言模型", choices=llm_models_list, value=llm_name, interactive=True)
                 llm_model_select.change(inputs=[llm_model_select], outputs=[])
-                image_diffusion_model_select = gr.Dropdown(label="Image diffusion model", choices=image_diffusion_models_list, value=sdxl_name, interactive=True)
+                image_diffusion_model_select = gr.Dropdown(label="图像渲染模型", choices=image_diffusion_models_list, value=sdxl_name, interactive=True)
                 image_diffusion_model_select.change(inputs=[image_diffusion_model_select], outputs=[])
-                refresh_models_list_btn = gr.Button("🔄️ Refresh Image diffusion model list", variant="secondary", min_width=60)
+                refresh_models_list_btn = gr.Button("🔄️ 刷新模型列表", variant="secondary", min_width=60)
                 refresh_models_list_btn.click(refresh_models_list, inputs=[], outputs=[image_diffusion_model_select])
 
             render_button = gr.Button("渲染图像！", size='lg', variant="primary", visible=False)
