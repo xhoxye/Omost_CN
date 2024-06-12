@@ -56,7 +56,7 @@ Omost 提供了一系列大型语言模型（LLM），这些模型能够编写�
 
 # 界面翻译截图
 
-![](https://raw.githubusercontent.com/xhoxye/Omost_CN/main/Screenshots.png)
+![](https://raw.githubusercontent.com/xhoxye/Omost_CN/main/Screenshots1.png)
 
 # Omost
 
