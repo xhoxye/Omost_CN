@@ -1,7 +1,6 @@
 import os
 
 os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com' #国内IP使用镜像站下载模型，不想用就注释掉
-
 os.environ['HF_HOME'] = os.path.join(os.path.dirname(__file__), 'models/hf_download')
 HF_TOKEN = None
 
@@ -39,6 +38,9 @@ from transformers.generation.stopping_criteria import StoppingCriteriaList
 
 import lib_omost.canvas as omost_canvas
 
+def bytes_to_giga_bytes(bytes):
+    return bytes / 1024 / 1024 / 1024
+
 llm_models_list=[
     'lllyasviel/omost-llama-3-8b-4bits',
     'lllyasviel/omost-dolphin-2.9-llama3-8b-4bits',
@@ -47,26 +49,23 @@ llm_models_list=[
     'lllyasviel/omost-dolphin-2.9-llama3-8b',
     'lllyasviel/omost-phi-3-mini-128k'
 ]
-# LLM 默认值
+# LLM default model
 llm_name = 'lllyasviel/omost-llama-3-8b-4bits'
 
-# 定义当前目录下 models/checkpoints 文件夹的路径
 models_dir = os.path.join(os.getcwd(), 'models/checkpoints')
-#如果没有发现这个文件夹，则创建一个 models/checkpoints文件夹，并打印信息 
+
 if not os.path.exists(models_dir):
     os.makedirs(models_dir)
     print(f"models/checkpoints folder not found, creating one at {models_dir}")   
 
-# sdxl_name是本地模型名称，RealVisXL_V4.0是默认值
+# sdxl_name default model
 sdxl_name = 'RealVisXL_V4.0'
 
-#定义一个函数，读取models_dir目录下的所有.safetensors文件，并将这个文件名列表赋与image_diffusion_models_list
 def get_image_diffusion_models_list(models_dir):
     return [os.path.splitext(os.path.basename(file))[0] for file in os.listdir(models_dir) if file.endswith('.safetensors')]
 
-# 使用函数获取模型列表
 image_diffusion_models_list = get_image_diffusion_models_list(models_dir)
-#定义一个刷新模型列表的函数，执行get_image_diffusion_models_list函数来更新image_diffusion_model_select的choices 
+
 def refresh_models_list():
     image_diffusion_models_list = get_image_diffusion_models_list(models_dir)
     return gr.update(choices=image_diffusion_models_list)
@@ -78,6 +77,7 @@ text_encoder_2 = None
 vae = None
 unet = None
 pipeline = None
+model_pipeline = None
 
 def load_model(models_dir, image_diffusion_model_select):
     global tokenizer, tokenizer_2, text_encoder, text_encoder_2, vae, unet, pipeline
@@ -87,8 +87,8 @@ def load_model(models_dir, image_diffusion_model_select):
     if not os.path.isfile(model_path):
         print(f"{image_diffusion_model_select}.safetensors not found in {models_dir} .")
         print(f"Please download the model file from https://huggingface.co/SG161222/RealVisXL_V4.0/resolve/main/RealVisXL_V4.0.safetensors to {models_dir}")
-        print(f"国内IP请下载 https://hf-mirror.com/SG161222/RealVisXL_V4.0/resolve/main/RealVisXL_V4.0.safetensors 默认模型并存放到 {models_dir} 路径下。")
         print(f"Next, it will switch to the Hugging Face directory 'SG161222/RealVisXL_V4.0' to download and run.")
+        image_diffusion_model_select = 'RealVisXL_V4.0'
         hf_repo_id = 'SG161222/RealVisXL_V4.0'
 
         tokenizer = CLIPTokenizer.from_pretrained(
@@ -104,14 +104,14 @@ def load_model(models_dir, image_diffusion_model_select):
         unet = UNet2DConditionModel.from_pretrained(
             hf_repo_id, subfolder="unet", torch_dtype=torch.float16, variant="fp16")
     else:
-        # 使用本地模型文件创建pipeline，如果显存在12G及以上可以使用 float32
-        model_pipeline = StableDiffusionXLImg2ImgPipeline.from_single_file(model_path, torch_dtype=torch.float16, variant="fp16")
+        # float32 is preferred for GPUs with 12GB or more of VRAM?
+        model_pipeline = StableDiffusionXLImg2ImgPipeline.from_single_file(model_path, torch_dtype=torch.float16, variant="fp16") #, torch_dtype=torch.float32, variant="fp32"
 
         tokenizer = model_pipeline.tokenizer
         tokenizer_2 = model_pipeline.tokenizer_2
         text_encoder = model_pipeline.text_encoder
         text_encoder_2 = model_pipeline.text_encoder_2
-        text_encoder_2 = CLIPTextModel(config=text_encoder_2.config)  # 转换text_encoder_2
+        text_encoder_2 = CLIPTextModel(config=text_encoder_2.config)
         vae = model_pipeline.vae
         unet = model_pipeline.unet
     
@@ -125,22 +125,18 @@ def load_model(models_dir, image_diffusion_model_select):
         text_encoder_2=text_encoder_2,
         tokenizer_2=tokenizer_2,
         unet=unet,
-        scheduler=None,  # We completely give up diffusers sampling system and use A1111's method
+        scheduler=None,  # We completely give up diffusers sampling system and use A1111's method. 我们完全放弃了diffusers库的采样系统，改用A1111的方法。DPM-Solver++(2M).
     )
     return pipeline
 
 def process_seed(seed_string):
-    # 尝试将字符串转换为整数
     try:
         seed = int(seed_string)
     except ValueError:
         raise ValueError(f"The seed string '{seed_string}' is not a valid integer.")
-    # 处理转换后的整数
     if seed == -1:
-        # 如果是 -1，重新生成一个随机整数
-        seed = np.random.randint(0, 2**31 - 1)
+        seed = np.random.randint(0, 2**31 - 1) #int32 max value
     elif not (0 <= seed <= 2**31 - 1):
-        # 如果整数不在 0 到 2**31 - 1 范围内，抛出异常
         raise ValueError(f"The seed value '{seed}' is out of the valid range for int32 [0, {2**31 - 1}].")    
     return seed
 
@@ -184,12 +180,9 @@ def chat_fn(message: str, history: list, seed:int, temperature: float, top_p: fl
         token=HF_TOKEN
     )
 
-    memory_management.unload_all_models(llm_model)
-
     chat_start_time = time.perf_counter()
 
     seed = process_seed(seed)
-    #打印对话种子值
     print(f"Chat seed: {seed}")
     np.random.seed(int(seed))
     torch.manual_seed(int(seed))
@@ -244,9 +237,8 @@ def chat_fn(message: str, history: list, seed:int, temperature: float, top_p: fl
         # print(outputs)
         yield "".join(outputs), interrupter
 
-    #打印完成信息
     chat_time = time.perf_counter() - chat_start_time
-    print(f'Chat total time: {chat_time:.2f} seconds')
+    print(f'Chat total time: {chat_time:.2f} seconds. Max memory allocated: {bytes_to_giga_bytes(torch.cuda.max_memory_allocated()):.2f} GB')
     print('Chat finished')
 
     return
@@ -276,18 +268,14 @@ def diffusion_fn(chatbot, canvas_outputs, num_samples, seed, image_width, image_
 
     use_initial_latent = False
     eps = 0.05 
-
-    #打印image_diffusion_model加载信息    
+  
     print(f'Loading image diffusion model: {image_diffusion_model_select}')
 
     pipeline = load_model(models_dir, image_diffusion_model_select)
 
-    memory_management.unload_all_models([text_encoder, text_encoder_2, vae, unet])
-
     image_width, image_height = int(image_width // 64) * 64, int(image_height // 64) * 64
 
     seed = process_seed(seed)
-    #打印图像种子值
     print(f"Image seed: {seed}")
 
     rng = torch.Generator(device=memory_management.gpu).manual_seed(seed)
@@ -325,7 +313,7 @@ def diffusion_fn(chatbot, canvas_outputs, num_samples, seed, image_width, image_
         generator=rng,
         guidance_scale=float(cfg),
     ).images
-
+    
     memory_management.load_models_to_gpu([vae])
     latents = latents.to(dtype=vae.dtype, device=vae.device) / vae.config.scaling_factor
     pixels = vae.decode(latents).sample
@@ -370,14 +358,15 @@ def diffusion_fn(chatbot, canvas_outputs, num_samples, seed, image_width, image_
         #image_path = os.path.join(gradio_temp_dir, f"{unique_hex}_{i}.png")   
         current_time = datetime.datetime.now()
         time_string = current_time.strftime("%Y-%m-%d_%H-%M-%S")
-        image_path = os.path.join(outputs_dir, f"{time_string}_{i}_{unique_hex}.png")           
-        print(f'Image saved at: {image_path}')#打印保存图片信息
+        image_path = os.path.join(outputs_dir, f"{time_string}_{i}_{image_diffusion_model_select}_{unique_hex}.png")           
+        print(f'Image saved at: {image_path}')
         image = Image.fromarray(pixels[i])
         image.save(image_path)
         chatbot = chatbot + [(None, (image_path, 'image'))]
 
     diffusion_time = time.perf_counter() - diffusion_start_time
-    print(f'Image render total time: {diffusion_time:.2f} seconds')
+    print(f'Image render total time: {diffusion_time:.2f} seconds. Max memory allocated: {bytes_to_giga_bytes(torch.cuda.max_memory_allocated()):.2f} GB')
+    memory_management.unload_all_models([text_encoder, text_encoder_2, vae, unet])
 
     return chatbot
 
@@ -400,14 +389,14 @@ with gr.Blocks(
     with gr.Row(elem_classes='outer_parent'):
         with gr.Column(scale=25):
             with gr.Row():
-                clear_btn = gr.Button("➕ 新建对话", variant="secondary", size="sm", min_width=60)
-                retry_btn = gr.Button("重试", variant="secondary", size="sm", min_width=60, visible=False)
-                undo_btn = gr.Button("✏️️ 编辑最近一次输入", variant="secondary", size="sm", min_width=60, interactive=False)
-            with gr.Tab(label='设置'):
+                clear_btn = gr.Button("➕ 新建对话（New Chat）", variant="secondary", size="sm", min_width=60)
+                retry_btn = gr.Button("重试（Retry）", variant="secondary", size="sm", min_width=60, visible=False)
+                undo_btn = gr.Button("✏️️ 编辑输入（Edit Last Input）", variant="secondary", size="sm", min_width=60, interactive=False)
+            with gr.Tab(label='设置（Setting）'):
 
-                seed = gr.Number(label="随机种子", value=-1, precision=0)
+                seed = gr.Number(label="随机种子（Random Seed）", value=-1, precision=0)
 
-                with gr.Accordion(open=True, label='语言模型'):
+                with gr.Accordion(open=False, label='大语言模型（Language Model）'):
                     with gr.Group():
                         with gr.Row():
                             temperature = gr.Slider(
@@ -415,45 +404,45 @@ with gr.Blocks(
                                 maximum=2.0,
                                 step=0.01,
                                 value=0.6,
-                                label="随机性调节")
+                                label="随机性调节（Temperature）")
                             top_p = gr.Slider(
                                 minimum=0.0,
                                 maximum=1.0,
                                 step=0.01,
                                 value=0.9,
-                                label="核心词采样")
+                                label="核心词采样（Top P）")
                         max_new_tokens = gr.Slider(
                             minimum=128,
                             maximum=4096,
                             step=1,
                             value=4096,
-                            label="最大新词元（Tokens）数")
-                with gr.Accordion(open=True, label='图像扩散模型'):
+                            label="最大新词元数（Max New Tokens）")
+                with gr.Accordion(open=True, label='图像扩散模型（Image Diffusion Model）'):
                     with gr.Group():
                         with gr.Row():
-                            image_width = gr.Slider(label="图像宽度", minimum=256, maximum=2048, value=896, step=64)
-                            image_height = gr.Slider(label="图像高度", minimum=256, maximum=2048, value=1152, step=64)
+                            image_width = gr.Slider(label="宽度", minimum=256, maximum=2048, value=896, step=64)
+                            image_height = gr.Slider(label="高度", minimum=256, maximum=2048, value=1152, step=64)
 
                         with gr.Row():
                             num_samples = gr.Slider(label="出图数量", minimum=1, maximum=12, value=1, step=1)
                             steps = gr.Slider(label="采样步数", minimum=1, maximum=100, value=25, step=1)
 
-                with gr.Accordion(open=False, label='高级设置'):
-                    cfg = gr.Slider(label="提示引导系数 CFG", minimum=1.0, maximum=32.0, value=5.0, step=0.01)
+                with gr.Accordion(open=False, label='高级设置（Advanced）'):
+                    cfg = gr.Slider(label="提示引导系数（CFG Scale）", minimum=1.0, maximum=32.0, value=5.0, step=0.01)
                     highres_scale = gr.Slider(label="高清修复放大倍数（1为禁用）", minimum=1.0, maximum=2.0, value=1.0, step=0.01)
-                    highres_steps = gr.Slider(label="高清修复步数", minimum=1, maximum=100, value=20, step=1)
-                    highres_denoise = gr.Slider(label="高清修复降噪强度", minimum=0.1, maximum=1.0, value=0.4, step=0.01)
-                    n_prompt = gr.Textbox(label="反向提示词", value='lowres, bad anatomy, bad hands, cropped, worst quality')
+                    highres_steps = gr.Slider(label="高清修复步数（Highres Fix Steps）", minimum=1, maximum=100, value=20, step=1)
+                    highres_denoise = gr.Slider(label="高清修复降噪强度（Highres Fix Denoise）", minimum=0.1, maximum=1.0, value=0.4, step=0.01)
+                    n_prompt = gr.Textbox(label="反向提示词（Negative Prompt）", value='lowres, bad anatomy, bad hands, cropped, worst quality')
 
-            with gr.Tab(label='模型'):
-                llm_model_select = gr.Dropdown(label="大语言模型", choices=llm_models_list, value=llm_name, interactive=True)
+            with gr.Tab(label='模型（Models）'):
+                llm_model_select = gr.Dropdown(label="大语言模型（LLM model）", choices=llm_models_list, value=llm_name, interactive=True)
                 llm_model_select.change(inputs=[llm_model_select], outputs=[])
-                image_diffusion_model_select = gr.Dropdown(label="图像渲染模型", choices=image_diffusion_models_list, value=sdxl_name, interactive=True)
+                image_diffusion_model_select = gr.Dropdown(label="图像扩散模型（Image diffusion model）", choices=image_diffusion_models_list, value=sdxl_name, interactive=True)
                 image_diffusion_model_select.change(inputs=[image_diffusion_model_select], outputs=[])
-                refresh_models_list_btn = gr.Button("🔄️ 刷新模型列表", variant="secondary", min_width=60)
+                refresh_models_list_btn = gr.Button("🔄️ 刷新扩散模型列表", variant="secondary", min_width=60)
                 refresh_models_list_btn.click(refresh_models_list, inputs=[], outputs=[image_diffusion_model_select])
 
-            render_button = gr.Button("渲染图像！", size='lg', variant="primary", visible=False)
+            render_button = gr.Button("渲染图像！（Render the Image!）", size='lg', variant="primary", visible=False)
 
             examples = gr.Dataset(
                 samples=[
@@ -462,7 +451,7 @@ with gr.Blocks(
                     ['generate a half length portrait photoshooot of a man and a woman on the city street']
                 ],
                 components=[gr.Textbox(visible=False)],
-                label='提示词快捷列表'
+                label='提示词示例（Quick Prompts）'
             )
         with gr.Column(scale=75, elem_classes='inner_parent'):
             canvas_state = gr.State(None)
